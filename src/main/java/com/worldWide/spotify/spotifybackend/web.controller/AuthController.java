@@ -4,12 +4,11 @@ import com.worldWide.spotify.spotifybackend.service.SpotifyAuthService;
 import com.worldWide.spotify.spotifybackend.util.PKCEUtil;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.servlet.view.RedirectView;
 
 import java.util.Map;
@@ -22,7 +21,6 @@ public class AuthController {
     private final SpotifyAuthService spotifyAuthService;
 
 
-
     public AuthController(SpotifyAuthService spotifyAuthService) {
         this.spotifyAuthService = spotifyAuthService;
     }
@@ -31,8 +29,8 @@ public class AuthController {
     public RedirectView login(HttpSession session) throws Exception {
         String codeVerifier = PKCEUtil.generateCodeVerifier();
         String codeChallenge = PKCEUtil.generateCodeChallenge(codeVerifier);
-        //String state = UUID.randomUUID().toString();
-        String state = "mockState456";
+        String state = UUID.randomUUID().toString();
+        //String state = "mockState456";
 
         session.setAttribute("code_verifier", codeVerifier);
         session.setAttribute("state", state);

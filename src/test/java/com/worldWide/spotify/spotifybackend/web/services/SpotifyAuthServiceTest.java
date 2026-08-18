@@ -33,7 +33,7 @@ class SpotifyAuthServiceTest {
 
     public static final String INVALID_CODE_VERIFIER_ERROR_MESSAGE = "Code verifier cannot be null or empty";
     public static final String INVALID_AUTHORIZATION_CODE_ERROR_MESSAGE = "Authorization code cannot be null or empty";
-    public static final String INVALID_REFRESH_TOKEN_ERROR_MESSAGE = "No refresh token found in session";
+    public static final String INVALID_REFRESH_TOKEN_ERROR_MESSAGE = "No refresh token found, Log in again to get it.";
 
     @Mock
     private SpotifyProperties spotifyProperties;
@@ -51,7 +51,6 @@ class SpotifyAuthServiceTest {
         when(spotifyProperties.getClientId()).thenReturn("test-client-id");
         when(spotifyProperties.getRedirectUri()).thenReturn("http://127.0.0.1:8080/callback");
         lenient().when(spotifyProperties.getScopes()).thenReturn(List.of("playlist-modify-private","playlist-modify-public","playlist-read-private"));
-
 
         RestTemplateBuilder builder = mock(RestTemplateBuilder.class);
         when(builder.build()).thenReturn(restTemplate);

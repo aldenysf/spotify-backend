@@ -15,6 +15,7 @@ public class SpotifyProperties {
     private String baseUrl;
     private List<String> scopes;
     private String playlistId;
+    private String currentRefreshToken;
 
 
     // Getters y Setters
@@ -64,5 +65,13 @@ public class SpotifyProperties {
 
     public void setPlaylistId(String playlistId) {
         this.playlistId = playlistId;
+    }
+
+    public String getCurrentRefreshToken() {
+        return currentRefreshToken;
+    }
+
+    public void setCurrentRefreshToken(String currentRefreshToken) {
+        this.currentRefreshToken = currentRefreshToken;
     }
 }

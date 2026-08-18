@@ -3,6 +3,7 @@ package com.worldWide.spotify.spotifybackend.service;
 
 import com.worldWide.spotify.spotifybackend.config.SpotifyProperties;
 import com.worldWide.spotify.spotifybackend.data.SpotifyPlaylistData;
+import io.micrometer.common.util.StringUtils;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -10,8 +11,9 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
+
+import java.util.Objects;
 
 @Service
 public class SpotifyService {
@@ -33,6 +35,47 @@ public class SpotifyService {
         try {
             HttpHeaders headers = new HttpHeaders();
             headers.setBearerAuth(spotifyAuthService.getAccessToken());
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<SpotifyPlaylistData> response = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    SpotifyPlaylistData.class
+            );
+            System.out.println("Response: " + response.getBody());
+            return response.getBody();
+
+        } catch (HttpClientErrorException.Unauthorized ex) {
+            spotifyAuthService.refreshAccessToken();
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(spotifyAuthService.getAccessToken());
+
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<SpotifyPlaylistData> retryResponse = restTemplate.exchange(
+                    url,
+                    HttpMethod.GET,
+                    entity,
+                    SpotifyPlaylistData.class
+            );
+
+            return retryResponse.getBody();
+
+        } catch (HttpClientErrorException ex) {
+            throw new RuntimeException("Error al obtener playlist: " + ex.getStatusCode(), ex);
+        }
+    }
+
+    public SpotifyPlaylistData getPlaylist(String playlistId, String token) {
+        String url = spotifyProperties.getBaseUrl() + "/playlists/" + playlistId;
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            //if(StringUtils.isBlank(token) || Objects.nonNull(token)){}
+            headers.setBearerAuth(token);
 
             HttpEntity<Void> entity = new HttpEntity<>(headers);
 
