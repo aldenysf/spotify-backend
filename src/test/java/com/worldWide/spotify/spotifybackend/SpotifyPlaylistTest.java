@@ -51,7 +51,7 @@ class SpotifyPlaylistTest extends PlaywrightTestCase {
 	void setUp(){
 		// Crear mocks
 		lenient().when(spotifyProperties.getClientId()).thenReturn("5774fb96e96741c0b2d984b22ac28b99");
-		lenient().when(spotifyProperties.getCurrentRefreshToken()).thenReturn("AQDeQMBFAOWJyWCIwQk0lVMrqPEH7Vto32Oe21aECOhuzr5wRaxSt31YXEjpGgghPI2HQMPEnUTnUQ15Ui4RsNVZN7O_qPx2tWFkMX1ZDFPMFdt7u7dC6cjw3qoYFGC_kXQ");
+		lenient().when(spotifyProperties.getCurrentRefreshToken()).thenReturn("AQCZ59h3lE-M2A8iw1EnYCAQXVlM82XZ4-8LUcC9QBCiUTQRocyFjwL6TQvAfPu_mPza8wETNxFQx6l4W0htuKtMIQBA4Ewt8eaMxJOE7LXVZr0G27WreKK_b9UPv66WGDM");
 		RestTemplateBuilder builder = new RestTemplateBuilder();
 		spotifyAuthService = new SpotifyAuthService(spotifyProperties,session,builder);
 		accessToken = spotifyAuthService.getAccessTokenForTests();
