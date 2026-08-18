@@ -2,10 +2,11 @@ package com.worldWide.spotify.spotifybackend.service;
 
 import com.worldWide.spotify.spotifybackend.config.SpotifyProperties;
 import com.worldWide.spotify.spotifybackend.data.SpotifyTokenResponseData;
-import io.micrometer.common.util.StringUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpSession;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,7 @@ public class SpotifyAuthService {
     @Autowired
     private final SpotifyProperties spotifyProperties;
     private final HttpSession session;
-    private  final RestTemplate restTemplate;
+    private final RestTemplate restTemplate;
 
     public SpotifyAuthService(SpotifyProperties spotifyProperties, HttpSession session, RestTemplateBuilder restTemplateBuilder) {
         this.spotifyProperties = spotifyProperties;
@@ -79,17 +80,26 @@ public class SpotifyAuthService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
 
         RestTemplate restTemplate = new RestTemplate();
-        ResponseEntity<Map> response = restTemplate.postForEntity(
-                "https://accounts.spotify.com/api/token", request, Map.class);
+        ResponseEntity<Map> response = restTemplate.postForEntity("https://accounts.spotify.com/api/token", request, Map.class);
 
         if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
             throw new IllegalStateException("Error al obtener token desde Spotify. Status: " + response.getStatusCode());
         }
 
-        return response.getBody();
+        Map<String,Object> tokens = response.getBody();
+
+        if(tokens.containsKey("refresh_token")){
+            String refreshToken = (String) tokens.get("refresh_token");
+            session.setAttribute("refresh_token", refreshToken);
+            System.out.println("Nuevo refresh token obtenido: " + refreshToken);
+            System.out.println("Nuevo access token obtenido: " + tokens.get("access_token"));
+        }
+        session.setAttribute("access_token", tokens.get("access_token"));
+        return tokens;
     }
 
     public String getAccessToken(){
@@ -106,17 +116,18 @@ public class SpotifyAuthService {
     }
 
     public String refreshAccessToken() {
-        String refreshToken = (String) session.getAttribute("refresh_token");
+        String refreshToken = StringUtils.defaultIfBlank(spotifyProperties.getCurrentRefreshToken(),
+                (String) session.getAttribute("refresh_token"));
+
 
         if (Objects.isNull(refreshToken) || refreshToken.isBlank()) {
-            throw new IllegalStateException("No refresh token found in session");
+            throw new IllegalStateException("No refresh token found, Log in again to get it.");
         }
-
+        // Body
         MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
         body.add("grant_type","refresh_token");
         body.add("refresh_token",refreshToken);
         body.add("client_id", spotifyProperties.getClientId());
-
 
         // Headers
         HttpHeaders headers = new HttpHeaders();
@@ -131,7 +142,7 @@ public class SpotifyAuthService {
                 SpotifyTokenResponseData.class
         );
 
-        if (response.getStatusCode() == HttpStatus.OK && response.getBody() != null) {
+        if (response.getStatusCode().is2xxSuccessful() && Objects.nonNull(response.getBody())) {
             String newAccessToken = response.getBody().getAccessToken();
             String newRefreshToken = response.getBody().getRefreshToken();
 
@@ -141,6 +152,27 @@ public class SpotifyAuthService {
             return newAccessToken;
         } else {
             throw new RuntimeException("Failed to refresh token from Spotify");
+        }
+    }
+
+    public String getAccessTokenForTests() {
+        MultiValueMap<String, String> body = new LinkedMultiValueMap<>();
+        body.add("grant_type", "refresh_token");
+        body.add("refresh_token", spotifyProperties.getCurrentRefreshToken());
+        body.add("client_id", spotifyProperties.getClientId());
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(body, headers);
+        ResponseEntity<Map> response = restTemplate.postForEntity(
+                "https://accounts.spotify.com/api/token", request, Map.class
+        );
+
+        if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+            return (String) response.getBody().get("access_token");
+        } else {
+            throw new RuntimeException("Failed to refresh Spotify access token");
         }
     }
 
