@@ -46,11 +46,16 @@ Siempre usar `./mvnw`, no asumir que `mvn` global está instalado.
 - **`SpotifyPlaylistData` no mapea `tracks.items`**, solo `tracks.total`. Si se pide "traer las canciones", el fix es extender ese modelo (agregar `items` con track/artists/album/duration), no tocar los controllers ni los services.
 - **Rutas públicas** viven en `SecurityConfig.java` (`.requestMatchers(...).permitAll()`). Cualquier endpoint nuevo que no use auth de Spring Security (por ejemplo, que valide su propio Bearer token a mano como `/playlistdata`) debe agregarse ahí explícitamente o Spring Security lo bloqueará con 403 antes de llegar al controller.
 
+## CI
+
+`.github/workflows/ci.yml` corre `./mvnw -B test` en cada push/PR a `main` (desde `day1-ci-pipeline`, ver `context.md` → Historial de avance). No proponer crear un pipeline desde cero — ya existe; si se necesita algo nuevo (cobertura, más jobs), extender ese archivo. Branch protection no está disponible en este repo (privado, plan Free de GitHub), así que el CI es informativo por ahora, no bloquea merges.
+
 ## Credenciales
 
-`application.properties` tiene actualmente `client-id`, `client-secret` y un `current-refresh-token` reales en texto plano, commiteados al repo (repo privado). Si se toca ese archivo:
+`spotify.client-secret` y `spotify.current-refresh-token` en `application.properties` se leen desde variables de entorno (`SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`), sin default — la app falla al arrancar si faltan. `client-id` sigue en texto plano (no es secreto). Si se toca ese archivo:
 - No hardcodear credenciales nuevas ahí.
 - No imprimir tokens/secrets completos en logs nuevos (ya existen prints de tokens en `SpotifyAuthService`, son preexistentes, no los repliques en código nuevo).
+- Cualquier test nuevo que levante el contexto completo de Spring (`@SpringBootTest`) necesita sus propios valores dummy vía `properties = {...}` en la anotación — no depender de que las env vars reales estén seteadas en CI.
 
 ## Testing
 
