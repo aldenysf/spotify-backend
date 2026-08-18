@@ -1,83 +1,64 @@
 package com.worldWide.spotify.spotifybackend;
 
-import com.microsoft.playwright.APIResponse;
-import com.microsoft.playwright.Page;
-import com.microsoft.playwright.options.AriaRole;
-import com.microsoft.playwright.options.LoadState;
-import com.microsoft.playwright.options.RequestOptions;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.worldWide.spotify.spotifybackend.config.SpotifyProperties;
 import com.worldWide.spotify.spotifybackend.data.SpotifyPlaylistData;
-import com.worldWide.spotify.spotifybackend.service.SpotifyAuthService;
-import com.worldWide.spotify.spotifybackend.web.fixtures.PlaywrightTestCase;
-import jakarta.servlet.http.HttpSession;
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
+import com.worldWide.spotify.spotifybackend.service.SpotifyService;
+import com.worldWide.spotify.spotifybackend.web.controller.PlaylistController;
+import jakarta.servlet.ServletException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.boot.web.client.RestTemplateBuilder;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.web.servlet.MockMvc;
 
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-class SpotifyPlaylistTest extends PlaywrightTestCase {
+@WebMvcTest(controllers = PlaylistController.class)
+@AutoConfigureMockMvc(addFilters = false)
+class SpotifyPlaylistTest {
 
-	@LocalServerPort
-	private int port;
+	private static final String PLAYLIST_ID = "7xBLtlRNkinBdkNYy0BafL";
 
-	@Mock
+	@Autowired
+	private MockMvc mockMvc;
+
+	@MockBean
+	private SpotifyService spotifyService;
+
+	@MockBean
 	private SpotifyProperties spotifyProperties;
 
-	@Mock
-	private HttpSession session;
+	@Test
+	@DisplayName("GET /playlistdata returns playlist metadata for a valid Bearer token")
+	void getPlaylist() throws Exception {
+		when(spotifyProperties.getPlaylistId()).thenReturn(PLAYLIST_ID);
 
-	private SpotifyAuthService spotifyAuthService;
+		SpotifyPlaylistData playlist = new ObjectMapper().readValue(
+				"{\"id\":\"" + PLAYLIST_ID + "\",\"name\":\"Worldwide Side by Side\"}",
+				SpotifyPlaylistData.class);
 
-	private String accessToken;
-	private String baseUrl;
+		when(spotifyService.getPlaylist(PLAYLIST_ID, "fake-token")).thenReturn(playlist);
 
-	@BeforeEach
-	void setUp(){
-		// Crear mocks
-		lenient().when(spotifyProperties.getClientId()).thenReturn("5774fb96e96741c0b2d984b22ac28b99");
-		lenient().when(spotifyProperties.getCurrentRefreshToken()).thenReturn("AQCZ59h3lE-M2A8iw1EnYCAQXVlM82XZ4-8LUcC9QBCiUTQRocyFjwL6TQvAfPu_mPza8wETNxFQx6l4W0htuKtMIQBA4Ewt8eaMxJOE7LXVZr0G27WreKK_b9UPv66WGDM");
-		RestTemplateBuilder builder = new RestTemplateBuilder();
-		spotifyAuthService = new SpotifyAuthService(spotifyProperties,session,builder);
-		accessToken = spotifyAuthService.getAccessTokenForTests();
-		baseUrl = "http://127.0.0.1:" + port;
-		System.out.println("Port: " + port);
+		mockMvc.perform(get("/playlistdata").header("Authorization", "Bearer fake-token"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.id").value(PLAYLIST_ID))
+				.andExpect(jsonPath("$.name").value("Worldwide Side by Side"));
 	}
 
 	@Test
-	@DisplayName("Get Playlist metadata")
-	void getPlaylist() {
-		String playlistEndpoint = baseUrl + "/playlistdata";
+	@DisplayName("GET /playlistdata without Authorization header fails")
+	void getPlaylistWithoutAuthHeader() {
+		ServletException thrown = assertThrows(ServletException.class,
+				() -> mockMvc.perform(get("/playlistdata")));
 
-		APIResponse response = page.request().get(
-				playlistEndpoint,
-				RequestOptions.create()
-						.setHeader("Authorization", "Bearer " + accessToken)
-						.setHeader("Accept", "application/json")
-		);
-
-		int status = response.status();
-		String body = response.text();
-
-		System.out.println("Status: " + status);
-		System.out.println("Response: " + body);
-
-		Assertions.assertEquals(200, status, "Playlist request failed: " + body);
+		assertInstanceOf(IllegalStateException.class, thrown.getCause());
 	}
-
 }
