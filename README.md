@@ -23,7 +23,14 @@ La configuración vive en `src/main/resources/application.properties`, bajo el p
 | `spotify.base-url` | Base URL de la API de Spotify (`https://api.spotify.com/v1`) |
 | `spotify.current-refresh-token` | Refresh token usado como fallback para renovar el access token sin pasar por `/login` |
 
-> Estas credenciales están commiteadas en texto plano actualmente. Para un repo compartido, lo ideal es moverlas a variables de entorno o a un `application-local.properties` fuera de git.
+`spotify.client-secret` y `spotify.current-refresh-token` se leen desde variables de entorno (`SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`) — no hay valores por defecto, así que la app falla al arrancar si no están seteadas. Configúralas antes de levantar el proyecto:
+
+```bash
+export SPOTIFY_CLIENT_SECRET=tu-client-secret
+export SPOTIFY_REFRESH_TOKEN=tu-refresh-token
+```
+
+En IntelliJ: agrégalas en la Run Configuration (Environment variables).
 
 ## Cómo levantarlo
 

@@ -9,7 +9,7 @@ performance testing.
 ## Stack
 - Java 17, Maven (usa `./mvnw`, wrapper incluido)
 - Spring Boot 3.5.4: spring-boot-starter-web, -security, -cache
-- Lombok 1.18.30 (⚠️ ver "gaps" — actualmente no se procesa)
+- Lombok 1.18.30 (procesado correctamente desde el Día 1 — ver Historial)
 - springdoc-openapi (Swagger UI incluido)
 - Tests: JUnit 5, Mockito, spring-security-test, Microsoft Playwright (para
   algunos tests E2E existentes)
@@ -41,29 +41,31 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
 ## Estado actual de testing
 - 19 tests unitarios/slice (JUnit + Mockito + `@WebMvcTest`), todos mockeados,
   sin llamadas de red real. Corren con `./mvnw test`.
-- No hay pipeline de CI configurado (repo sin `.github/workflows/`).
-- No hay medición de cobertura (JaCoCo) ni análisis estático (SonarCloud).
+- CI: `.github/workflows/ci.yml` corre `./mvnw -B test` en cada push/PR a `main`
+  (Día 1). *Branch protection no disponible en este repo privado (plan Free de
+  GitHub) — el CI es informativo, no bloquea merges todavía.*
+- No hay medición de cobertura (JaCoCo) ni análisis estático (SonarCloud) —
+  pendiente Día 2. Sonar específicamente queda diferido: requiere repo público
+  o Docker local, ninguno decidido/disponible por ahora.
 - No hay tests de integración de API con REST Assured (candidato ideal:
-  `GET /playlistdata`, que no depende de sesión/cookies).
-- No hay tests de performance.
+  `GET /playlistdata`, que no depende de sesión/cookies) — pendiente Día 3.
+- No hay tests de performance (JMeter, Día 4) ni E2E con Playwright en CI
+  (Día 5) — diferidos: JMeter/Docker no están instalados en la máquina de
+  desarrollo actual, mejor implementarlos cuando estén disponibles para poder
+  verificarlos de verdad.
 - Repo privado en GitHub: `aldenysf/spotify-backend`.
 
 ## Gaps conocidos que son justo material para el plan
-- **Día 1-2 (CI + quality gates)**: repo listo para recibir un workflow desde
-  cero — no hay nada montado todavía, es terreno limpio.
+- **Día 2 (quality gates)**: falta JaCoCo (cobertura medida en ~33.5% de línea
+  al Día 1 — umbral de gate sugerido: 30%, deja margen real). Sonar diferido.
 - **Día 3 (REST Assured)**: `/playlistdata` es el endpoint perfecto — recibe
   Bearer token por header, sin dependencia de sesión de navegador, responde
-  JSON simple (`id`, `name`, `tracks.total`, etc.).
+  JSON simple (`id`, `name`, `tracks.total`, etc.). Ojo: sin header
+  `Authorization`, el endpoint responde **403** (no 500) bajo Tomcat real —
+  Spring Security intercepta el forward a `/error` porque `SecurityConfig` no
+  tiene `permitAll` para esa ruta.
 - **Día 4 (JMeter)**: mismo endpoint, mockeando o usando un token de prueba,
   sirve como target de carga.
-- Bug de build real ya identificado: `maven-compiler-plugin` declara
-  `annotationProcessorPaths` solo con `spring-boot-configuration-processor`,
-  lo que excluye a Lombok — sus `@Data` no generan getters/setters realmente.
-  Pendiente de arreglar (agregar el processor de Lombok al plugin).
-- Credenciales de Spotify (client-secret, refresh-token) están en
-  `application.properties` en texto plano, commiteadas (repo privado, pero
-  a mover a env vars/secrets de CI cuando se arme el pipeline — relevante
-  para el Día 1/2, ya que un pipeline real necesita manejar secrets).
 - El refresh token de Spotify rota en cada uso (PKCE) — cualquier test que
   dependa de un token hardcodeado se rompe solo; ya se resolvió para los
   tests actuales mockeando la capa de servicio en vez de pegarle a la API real.
@@ -76,3 +78,8 @@ Spotify y las cookies de sesión están atados a ese host exacto).
 - Fix de OAuth flow, endpoint `/playlistdata` agregado, 403 resuelto en
   `SecurityConfig`, tests rotos arreglados, `SpotifyPlaylistTest` convertido
   a slice test mockeado (`@WebMvcTest`). Ver PR #1.
+- **Día 1**: fix de Lombok (`annotationProcessorPaths` ahora incluye
+  `org.projectlombok:lombok`), secrets de Spotify movidos a variables de
+  entorno (`SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`, sin default —
+  la app falla rápido si faltan), y `.github/workflows/ci.yml` corriendo
+  `./mvnw -B test` en cada push/PR a `main`. Branch: `day1-ci-pipeline`.
