@@ -20,7 +20,8 @@ import static org.mockito.Mockito.when;
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "spotify.client-secret=test-secret",
-                "spotify.current-refresh-token=test-refresh-token"
+                "spotify.current-refresh-token=test-refresh-token",
+                "server.error.include-message=always"
         }
 )
 class PlaylistDataRestAssuredTest {
@@ -59,17 +60,19 @@ class PlaylistDataRestAssuredTest {
     }
 
     @Test
-    void getPlaylistData_withoutAuthHeader_returns403() {
-        // Verificado empíricamente contra Tomcat real: el controller lanza
-        // IllegalStateException, Tomcat reenvía a /error, pero SecurityConfig no
-        // tiene permitAll("/error"), así que Http403ForbiddenEntryPoint responde
-        // 403 antes de que Spring Boot arme un 500. Distinto del slice test
-        // @WebMvcTest (SpotifyPlaylistTest), que desactiva los filtros de
-        // seguridad y ve la excepción cruda en vez de un status HTTP.
+    void getPlaylistData_withoutAuthHeader_returns500WithErrorBody() {
+        // SecurityConfig permite /error (permitAll), así que el forward interno de
+        // Tomcat tras el IllegalStateException llega hasta BasicErrorController y
+        // arma un 500 real con body JSON, en vez de que Spring Security lo corte
+        // antes con un 403 vacío.
         given()
         .when()
                 .get("/playlistdata")
         .then()
-                .statusCode(403);
+                .statusCode(500)
+                .body("status", equalTo(500))
+                .body("error", equalTo("Internal Server Error"))
+                .body("message", equalTo("Missing or invalid Authorization header"))
+                .body("path", equalTo("/playlistdata"));
     }
 }

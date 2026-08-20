@@ -11,8 +11,8 @@ performance testing.
 - Spring Boot 3.5.4: spring-boot-starter-web, -security, -cache
 - Lombok 1.18.30 (procesado correctamente desde el Día 1 — ver Historial)
 - springdoc-openapi (Swagger UI incluido)
-- Tests: JUnit 5, Mockito, spring-security-test, Microsoft Playwright (para
-  algunos tests E2E existentes)
+- Tests: JUnit 5, Mockito, spring-security-test, REST Assured. Playwright
+  sigue como dependencia (para el Día 5, E2E), pero hoy no la usa ningún test.
 
 ## Estructura relevante
 ```
@@ -39,22 +39,32 @@ src/main/java/.../spotifybackend/
 Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
 
 ## Estado actual de testing
-- 21 tests (19 unitarios/slice mockeados + 2 de integración con REST Assured
-  sobre `/playlistdata`), sin llamadas de red real. Corren con `./mvnw test`.
+- 21 tests (18 unitarios/slice mockeados + 2 de integración con REST Assured
+  sobre `/playlistdata` + `SpotifyAuthServiceTest` con Mockito puro), sin
+  llamadas de red real. Corren con `./mvnw test`. Cero tests vacíos/muertos
+  (se eliminó `SpotifyAuthControllerTest.java` y `PlaywrightTestCase.java`,
+  que no tenían ningún `@Test` real).
 - CI: `.github/workflows/ci.yml` corre `./mvnw -B verify sonar:sonar` en cada
   push/PR a `main` (Día 1 + 2 + 3). *Branch protection no disponible en este
   repo (plan Free de GitHub) — el CI es informativo, no bloquea merges
   todavía.*
 - Cobertura: JaCoCo mide y bloquea el build si la cobertura de línea del
-  bundle baja de 30% (medido real al Día 3: **48.4%**, subió desde 35.2% del
-  Día 2 gracias a los tests de REST Assured sobre `PlaylistController`).
+  bundle baja de 30% (medido real al Día 3: **54.8%**, subió desde 35.2% del
+  Día 2 gracias a los tests de REST Assured y al de `AuthController.login`).
   Reporte HTML se sube como artefacto del workflow (`jacoco-report`).
 - Análisis estático: SonarCloud conectado (repo público desde el Día 2).
   Organization `aldenysf`, project key `aldenysf_spotify-backend`. Token en
   el secret `SONAR_TOKEN` del repo (GitHub Actions).
 - REST Assured: `PlaylistDataRestAssuredTest.java` — `@SpringBootTest(webEnvironment = RANDOM_PORT)`
   con `SpotifyService` mockeado, cubre Bearer válido (200 + shape del JSON) y
-  sin header (403, comportamiento real de Tomcat + Spring Security).
+  sin header (**500** con body de error completo — `SecurityConfig` ahora
+  permite `/error`, así que Spring Boot arma un 500 real en vez del 403 que
+  daba antes de ese cambio).
+- `AuthControllerTest.java` (`/login`) ya no está vacío: valida el redirect a
+  la URL de Spotify (mockeada) y que `code_verifier`/`state` queden en
+  sesión. Necesita `@AutoConfigureMockMvc(addFilters = false)` porque
+  `@WebMvcTest` no carga `SecurityConfig` y `/login` choca con el login form
+  por defecto de Spring Security.
 - No hay tests de performance (JMeter, Día 4) ni E2E con Playwright en CI
   (Día 5) — diferidos: JMeter/Docker no están instalados en la máquina de
   desarrollo actual, mejor implementarlos cuando estén disponibles para poder
@@ -94,6 +104,11 @@ Spotify y las cookies de sesión están atados a ese host exacto).
   `day2-quality-gates`.
 - **Día 3**: agregado `rest-assured` (test scope) y
   `PlaylistDataRestAssuredTest.java` — `@SpringBootTest(RANDOM_PORT)` con
-  `SpotifyService` mockeado, dos tests sobre `/playlistdata` (200 con Bearer
-  válido, 403 sin header). Cobertura subió a 48.4% de líneas. Branch:
+  `SpotifyService` mockeado, dos tests sobre `/playlistdata`. Además:
+  `SecurityConfig` ganó `permitAll("/error")`, así que sin header
+  Authorization ahora responde **500 real** (no 403) — el test quedó
+  actualizado a eso. Se rellenó `AuthControllerTest.java` (estaba vacío, sin
+  aserciones) y se eliminó `SpotifyAuthControllerTest.java` +
+  `PlaywrightTestCase.java` (scaffolding de Playwright sin ningún `@Test`
+  real). Cobertura subió a 54.8% de líneas. Branch:
   `day3-rest-assured-api-tests`.
