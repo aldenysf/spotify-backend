@@ -1,0 +1,26 @@
+name: Performance
+
+on:
+  workflow_dispatch:
+
+jobs:
+  jmeter-load-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: maven
+      - name: Run JMeter load test against a stubbed instance
+        run: ./mvnw -B -Pperf clean verify
+      - name: Upload JMeter HTML report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jmeter-report
+          path: target/jmeter/reports
+          retention-days: 14
