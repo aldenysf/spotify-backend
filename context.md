@@ -41,12 +41,16 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
 ## Estado actual de testing
 - 19 tests unitarios/slice (JUnit + Mockito + `@WebMvcTest`), todos mockeados,
   sin llamadas de red real. Corren con `./mvnw test`.
-- CI: `.github/workflows/ci.yml` corre `./mvnw -B test` en cada push/PR a `main`
-  (Día 1). *Branch protection no disponible en este repo privado (plan Free de
-  GitHub) — el CI es informativo, no bloquea merges todavía.*
-- No hay medición de cobertura (JaCoCo) ni análisis estático (SonarCloud) —
-  pendiente Día 2. Sonar específicamente queda diferido: requiere repo público
-  o Docker local, ninguno decidido/disponible por ahora.
+- CI: `.github/workflows/ci.yml` corre `./mvnw -B verify` en cada push/PR a
+  `main` (Día 1 + 2). *Branch protection no disponible en este repo privado
+  (plan Free de GitHub) — el CI es informativo, no bloquea merges todavía.*
+- Cobertura: JaCoCo mide y bloquea el build si la cobertura de línea del
+  bundle baja de 30% (medido real al Día 2: ~35.2%). Reporte HTML se sube como
+  artefacto del workflow (`jacoco-report`).
+- Análisis estático: SonarCloud conectado (repo se hizo público). Organization
+  `aldenysf`, project key `aldenysf_spotify-backend`. Token en el secret
+  `SONAR_TOKEN` del repo (GitHub Actions). `ci.yml` corre `sonar:sonar` como
+  parte del mismo comando de `verify`.
 - No hay tests de integración de API con REST Assured (candidato ideal:
   `GET /playlistdata`, que no depende de sesión/cookies) — pendiente Día 3.
 - No hay tests de performance (JMeter, Día 4) ni E2E con Playwright en CI
@@ -56,8 +60,8 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
 - Repo privado en GitHub: `aldenysf/spotify-backend`.
 
 ## Gaps conocidos que son justo material para el plan
-- **Día 2 (quality gates)**: falta JaCoCo (cobertura medida en ~33.5% de línea
-  al Día 1 — umbral de gate sugerido: 30%, deja margen real). Sonar diferido.
+- **Día 2 (quality gates)**: completo — JaCoCo (gate en 30% de línea) y
+  SonarCloud (análisis estático) ya implementados.
 - **Día 3 (REST Assured)**: `/playlistdata` es el endpoint perfecto — recibe
   Bearer token por header, sin dependencia de sesión de navegador, responde
   JSON simple (`id`, `name`, `tracks.total`, etc.). Ojo: sin header
@@ -83,3 +87,11 @@ Spotify y las cookies de sesión están atados a ese host exacto).
   entorno (`SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`, sin default —
   la app falla rápido si faltan), y `.github/workflows/ci.yml` corriendo
   `./mvnw -B test` en cada push/PR a `main`. Branch: `day1-ci-pipeline`.
+- **Día 2**: agregado `jacoco-maven-plugin` con gate de cobertura de línea
+  ≥30% a nivel `BUNDLE` (falla `verify` si baja). `ci.yml` pasa a correr
+  `./mvnw -B verify` y sube el reporte HTML de JaCoCo como artefacto. Cobertura
+  real medida: 35.2% de líneas. Repo pasado a público, conectado a SonarCloud
+  (`sonar-maven-plugin`, org `aldenysf`, project key
+  `aldenysf_spotify-backend`, token en secret `SONAR_TOKEN`) — `ci.yml` corre
+  `./mvnw -B verify sonar:sonar` con `fetch-depth: 0` en el checkout. Branch:
+  `day2-quality-gates`.
