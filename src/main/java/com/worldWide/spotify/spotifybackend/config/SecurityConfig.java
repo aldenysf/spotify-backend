@@ -16,7 +16,7 @@ public class SecurityConfig {
                 .csrf().disable()
                 .authorizeHttpRequests(
                 auth -> auth
-                        .requestMatchers("/login", "/callback", "/playlist", "/playlistdata").permitAll()
+                        .requestMatchers("/login", "/callback", "/playlist", "/playlistdata","/error").permitAll()
                         .anyRequest().authenticated());
         return http.build();
     }
