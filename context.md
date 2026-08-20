@@ -46,9 +46,11 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
   (plan Free de GitHub) — el CI es informativo, no bloquea merges todavía.*
 - Cobertura: JaCoCo mide y bloquea el build si la cobertura de línea del
   bundle baja de 30% (medido real al Día 2: ~35.2%). Reporte HTML se sube como
-  artefacto del workflow (`jacoco-report`). Análisis estático (SonarCloud)
-  sigue diferido: requiere repo público o Docker local, ninguno
-  decidido/disponible por ahora.
+  artefacto del workflow (`jacoco-report`).
+- Análisis estático: SonarCloud conectado (repo se hizo público). Organization
+  `aldenysf`, project key `aldenysf_spotify-backend`. Token en el secret
+  `SONAR_TOKEN` del repo (GitHub Actions). `ci.yml` corre `sonar:sonar` como
+  parte del mismo comando de `verify`.
 - No hay tests de integración de API con REST Assured (candidato ideal:
   `GET /playlistdata`, que no depende de sesión/cookies) — pendiente Día 3.
 - No hay tests de performance (JMeter, Día 4) ni E2E con Playwright en CI
@@ -58,8 +60,8 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
 - Repo privado en GitHub: `aldenysf/spotify-backend`.
 
 ## Gaps conocidos que son justo material para el plan
-- **Día 2 (quality gates)**: JaCoCo ya implementado (gate en 30% de línea).
-  Falta Sonar (análisis estático), diferido.
+- **Día 2 (quality gates)**: completo — JaCoCo (gate en 30% de línea) y
+  SonarCloud (análisis estático) ya implementados.
 - **Día 3 (REST Assured)**: `/playlistdata` es el endpoint perfecto — recibe
   Bearer token por header, sin dependencia de sesión de navegador, responde
   JSON simple (`id`, `name`, `tracks.total`, etc.). Ojo: sin header
@@ -88,5 +90,8 @@ Spotify y las cookies de sesión están atados a ese host exacto).
 - **Día 2**: agregado `jacoco-maven-plugin` con gate de cobertura de línea
   ≥30% a nivel `BUNDLE` (falla `verify` si baja). `ci.yml` pasa a correr
   `./mvnw -B verify` y sube el reporte HTML de JaCoCo como artefacto. Cobertura
-  real medida: 35.2% de líneas. Sonar queda diferido (repo privado, sin
-  Docker). Branch: `day2-quality-gates`.
+  real medida: 35.2% de líneas. Repo pasado a público, conectado a SonarCloud
+  (`sonar-maven-plugin`, org `aldenysf`, project key
+  `aldenysf_spotify-backend`, token en secret `SONAR_TOKEN`) — `ci.yml` corre
+  `./mvnw -B verify sonar:sonar` con `fetch-depth: 0` en el checkout. Branch:
+  `day2-quality-gates`.
