@@ -47,6 +47,7 @@ Siempre usar `./mvnw`, no asumir que `mvn` global está instalado.
 - **`SpotifyPlaylistData` no mapea `tracks.items`**, solo `tracks.total`. Si se pide "traer las canciones", el fix es extender ese modelo (agregar `items` con track/artists/album/duration), no tocar los controllers ni los services.
 - **Rutas públicas** viven en `SecurityConfig.java` (`.requestMatchers(...).permitAll()`), incluyendo `/error`. Cualquier endpoint nuevo que no use auth de Spring Security (por ejemplo, que valide su propio Bearer token a mano como `/playlistdata`) debe agregarse ahí explícitamente o Spring Security lo bloqueará con 403 antes de llegar al controller. Como `/error` está permitido, las excepciones no capturadas de los controllers (ej. `IllegalStateException` en `PlaylistController`) terminan en un **500 real de Spring Boot** (`BasicErrorController`, body JSON con `status`/`error`/`message`/`path`), no en un 403 de Spring Security.
 - **`@WebMvcTest` no carga `SecurityConfig`**: al ser un slice test, Spring Security cae en su configuración por defecto (todo requiere auth, y `/login` específicamente es interceptado por el login form genérico de Spring Security antes de llegar al controller). Cualquier `@WebMvcTest` sobre un endpoint que en `SecurityConfig` es `permitAll` necesita `@AutoConfigureMockMvc(addFilters = false)` para desactivar los filtros de seguridad y probar el controller real (ver `AuthControllerTest.java` y `SpotifyPlaylistTest.java`).
+- **`PlaylistController` es `@RestController`** (no `@Controller`) — springdoc-openapi filtra silenciosamente del spec cualquier método de una clase `@Controller` sin `@ResponseBody`/`@RestController`, aunque Spring MVC sí lo sirva bien. Si `/v3/api-docs` devuelve `paths: {}` para un controller nuevo, esta es la causa más probable, no un problema de component-scan. `AuthController` sigue siendo `@Controller` a propósito (su método `/login` devuelve `RedirectView`, no JSON) — por eso no aparece en Swagger, es esperado.
 
 ## CI
 
@@ -70,7 +71,9 @@ Profile Maven `perf` (no activo por defecto — `./mvnw -B verify` normal ni lo 
 - Slice tests (`@WebMvcTest`, mockeados): `SpotifyPlaylistTest.java`, `AuthControllerTest.java`.
 - Test de integración (`@SpringBootTest(RANDOM_PORT)` + REST Assured, `SpotifyService` mockeado): `PlaylistDataRestAssuredTest.java`.
 - Tests puros con Mockito (sin contexto de Spring): `SpotifyAuthServiceTest.java`, `PerfStubSpotifyServiceTest.java`.
-- La dependencia de Playwright sigue en `pom.xml` (para el Día 5 del plan, E2E), pero **no hay ningún test que la use hoy** — se eliminó `SpotifyAuthControllerTest.java` y `PlaywrightTestCase.java` (tenían cero `@Test` reales, era scaffolding muerto). Si se agrega un test E2E con Playwright, correr primero `mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install"` para los browsers.
+- E2E con Playwright real: `SwaggerUiE2ETest.java` — abre Chromium headless y valida que `/swagger-ui/index.html` cargue y liste `/playlistdata`. Acotado a lo automatizable sin login interactivo de Spotify (ver nota de `/login`/`/callback` arriba). Si los browsers no están instalados, correr:
+  `./mvnw exec:java -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install chromium" -D exec.classpathScope=test`
+  (el `exec.classpathScope=test` es obligatorio — Playwright es dependencia `test`, y `exec:java` no la ve sin eso). `ci.yml` ya corre este install antes de los tests.
 
 ## Qué falta (no asumir que existe)
 

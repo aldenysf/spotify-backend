@@ -16,7 +16,8 @@ public class SecurityConfig {
                 .csrf().disable()
                 .authorizeHttpRequests(
                 auth -> auth
-                        .requestMatchers("/login", "/callback", "/playlist", "/playlistdata","/error").permitAll()
+                        .requestMatchers("/login", "/callback", "/playlist", "/playlistdata", "/error",
+                                "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated());
         return http.build();
     }

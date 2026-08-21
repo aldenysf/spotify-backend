@@ -11,8 +11,8 @@ performance testing.
 - Spring Boot 3.5.4: spring-boot-starter-web, -security, -cache
 - Lombok 1.18.30 (procesado correctamente desde el Día 1 — ver Historial)
 - springdoc-openapi (Swagger UI incluido)
-- Tests: JUnit 5, Mockito, spring-security-test, REST Assured. Playwright
-  sigue como dependencia (para el Día 5, E2E), pero hoy no la usa ningún test.
+- Tests: JUnit 5, Mockito, spring-security-test, REST Assured, Playwright
+  (E2E real con Chromium, Día 5).
 
 ## Estructura relevante
 ```
@@ -24,8 +24,8 @@ src/main/java/.../spotifybackend/
 ├── service/SpotifyService.java      # llamadas a api.spotify.com
 ├── util/PKCEUtil.java
 └── web.controller/
-    ├── AuthController.java          # /login, /callback
-    └── PlaylistController.java      # /playlist, /playlistdata
+    ├── AuthController.java          # /login, /callback (@Controller — /login devuelve RedirectView)
+    └── PlaylistController.java      # /playlist, /playlistdata (@RestController)
 ```
 
 ## Endpoints
@@ -39,11 +39,11 @@ src/main/java/.../spotifybackend/
 Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
 
 ## Estado actual de testing
-- 21 tests (18 unitarios/slice mockeados + 2 de integración con REST Assured
-  sobre `/playlistdata` + `SpotifyAuthServiceTest` con Mockito puro), sin
-  llamadas de red real. Corren con `./mvnw test`. Cero tests vacíos/muertos
-  (se eliminó `SpotifyAuthControllerTest.java` y `PlaywrightTestCase.java`,
-  que no tenían ningún `@Test` real).
+- 23 tests (slices mockeados + REST Assured + Mockito puro + 1 E2E real con
+  Playwright), sin llamadas a la API real de Spotify. Corren con
+  `./mvnw test`. Cero tests vacíos/muertos (se eliminó
+  `SpotifyAuthControllerTest.java` y `PlaywrightTestCase.java`, que no tenían
+  ningún `@Test` real).
 - CI: `.github/workflows/ci.yml` corre `./mvnw -B verify sonar:sonar` en cada
   push/PR a `main` (Día 1 + 2 + 3). *Branch protection no disponible en este
   repo (plan Free de GitHub) — el CI es informativo, no bloquea merges
@@ -68,9 +68,11 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
 - Performance: JMeter vía `jmeter-maven-plugin` (no requiere instalar JMeter
   en el sistema, lo descarga Maven). Profile opcional `perf`, no toca el
   pipeline normal. Ver sección "Performance testing" más abajo.
-- No hay E2E con Playwright en CI (Día 5) — diferido: mejor abordarlo cuando
-  se decida el scope real (login interactivo de Spotify es difícil de
-  automatizar de punta a punta).
+- E2E con Playwright: `SwaggerUiE2ETest.java` — navegador Chromium real
+  (headless), navega a `/swagger-ui/index.html` y valida que liste
+  `/playlistdata`. `ci.yml` instala los browsers antes de correr los tests
+  (`exec:java` con `CLI install --with-deps chromium`, `exec.classpathScope=test`
+  obligatorio porque Playwright es dependencia `test`).
 - Repo público en GitHub: `aldenysf/spotify-backend`.
 
 ## Performance testing (Día 4)
@@ -105,6 +107,12 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
   SonarCloud (análisis estático) ya implementados.
 - **Día 3 (REST Assured)**: completo — ver `PlaylistDataRestAssuredTest.java`.
 - **Día 4 (JMeter)**: completo — ver sección "Performance testing".
+- **Día 5 (Playwright E2E)**: completo, con el scope realista que ya
+  documentaba `AGENTS.md` (Swagger UI, no el login OAuth interactivo).
+- Bug real encontrado y arreglado en el Día 5: `springdoc-openapi` filtra
+  silenciosamente los métodos de clases `@Controller` sin `@ResponseBody` —
+  `/v3/api-docs` devolvía `paths: {}` aunque los endpoints funcionaran bien
+  en runtime. `PlaylistController` pasó a `@RestController`.
 - El refresh token de Spotify rota en cada uso (PKCE) — cualquier test que
   dependa de un token hardcodeado se rompe solo; ya se resolvió para los
   tests actuales mockeando la capa de servicio en vez de pegarle a la API real.
@@ -149,3 +157,13 @@ Spotify y las cookies de sesión están atados a ese host exacto).
   promedio. Workflow separado `performance.yml` (manual, no en cada push).
   Cobertura: 60.5% de líneas (se agregó `PerfStubSpotifyServiceTest`).
   Branch: `day4-jmeter-performance-testing`.
+- **Día 5**: `SecurityConfig` gana `permitAll` para `/swagger-ui/**` y
+  `/v3/api-docs/**` (antes bloqueaban con el login de Spring Security).
+  Bug encontrado: `/v3/api-docs` devolvía `paths: {}` porque
+  `PlaylistController` era `@Controller` sin `@ResponseBody` — springdoc lo
+  filtra en silencio. Se cambió a `@RestController` (comportamiento en
+  runtime intacto, verificado con la suite completa). Nuevo
+  `SwaggerUiE2ETest.java`: Playwright + Chromium real, navega a
+  `/swagger-ui/index.html` y valida que liste `/playlistdata`. `ci.yml` suma
+  un step para instalar los browsers de Playwright antes de los tests.
+  Cobertura: 60.7% de líneas. Branch: `day5-playwright-e2e`.
