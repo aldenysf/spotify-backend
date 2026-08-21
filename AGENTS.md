@@ -13,7 +13,8 @@ src/main/java/com/worldWide/spotify/spotifybackend/
 ├── SpotifyBackendApplication.java
 ├── config/
 │   ├── SecurityConfig.java       # rutas públicas vs autenticadas
-│   └── SpotifyProperties.java    # binding de spotify.* en application.properties
+│   ├── SpotifyProperties.java    # binding de spotify.* en application.properties
+│   └── PerfStubSpotifyService.java # @Profile("perf") — stub para JMeter, no tocar fuera de ese profile
 ├── data/
 │   ├── SpotifyPlaylistData.java  # DTO de respuesta de playlist
 │   └── SpotifyTokenResponseData.java
@@ -51,6 +52,12 @@ Siempre usar `./mvnw`, no asumir que `mvn` global está instalado.
 
 `.github/workflows/ci.yml` corre `./mvnw -B verify sonar:sonar` en cada push/PR a `main` (desde `day1-ci-pipeline`/`day2-quality-gates`, ver `context.md` → Historial de avance). No proponer crear un pipeline desde cero — ya existe; si se necesita algo nuevo, extender ese archivo. Incluye gate de cobertura (JaCoCo, mínimo 30% de línea) y análisis estático (SonarCloud, repo público, org `aldenysf`, project key `aldenysf_spotify-backend`, token en el secret `SONAR_TOKEN`). Branch protection no está disponible en este repo (plan Free de GitHub), así que el CI es informativo por ahora, no bloquea merges.
 
+`.github/workflows/performance.yml` corre el load test de JMeter, pero solo manual (`workflow_dispatch`) — no en cada push, para no ralentizar el pipeline normal. Ver sección "Performance testing" abajo.
+
+## Performance testing
+
+Profile Maven `perf` (no activo por defecto — `./mvnw -B verify` normal ni lo toca): `./mvnw -Pperf clean verify` (usar `clean` siempre en local, el reporte HTML de JMeter no sobreescribe una carpeta no vacía). Usa `jmeter-maven-plugin`, que descarga su propio JMeter vía Maven — no asumir que hace falta instalarlo en el sistema. Levanta la app real en el puerto 8089 con el profile Spring `perf` activo, que hace que `PerfStubSpotifyService` (`@Primary`) reemplace a `SpotifyService` con datos fijos — así el load test mide esta app real, sin pegarle a la API de Spotify. El plan de carga vive en `src/test/jmeter/playlistdata-load-test.jmx`. No agregar la ejecución de `jmeter-maven-plugin` o `spring-boot:start/stop` fuera del profile `perf` — rompería el pipeline normal (que no tiene los secrets de Spotify seteados a propósito).
+
 ## Credenciales
 
 `spotify.client-secret` y `spotify.current-refresh-token` en `application.properties` se leen desde variables de entorno (`SPOTIFY_CLIENT_SECRET`, `SPOTIFY_REFRESH_TOKEN`), sin default — la app falla al arrancar si faltan. `client-id` sigue en texto plano (no es secreto). Si se toca ese archivo:
@@ -62,7 +69,7 @@ Siempre usar `./mvnw`, no asumir que `mvn` global está instalado.
 
 - Slice tests (`@WebMvcTest`, mockeados): `SpotifyPlaylistTest.java`, `AuthControllerTest.java`.
 - Test de integración (`@SpringBootTest(RANDOM_PORT)` + REST Assured, `SpotifyService` mockeado): `PlaylistDataRestAssuredTest.java`.
-- Tests puros con Mockito (sin contexto de Spring): `SpotifyAuthServiceTest.java`.
+- Tests puros con Mockito (sin contexto de Spring): `SpotifyAuthServiceTest.java`, `PerfStubSpotifyServiceTest.java`.
 - La dependencia de Playwright sigue en `pom.xml` (para el Día 5 del plan, E2E), pero **no hay ningún test que la use hoy** — se eliminó `SpotifyAuthControllerTest.java` y `PlaywrightTestCase.java` (tenían cero `@Test` reales, era scaffolding muerto). Si se agrega un test E2E con Playwright, correr primero `mvn exec:java -e -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install"` para los browsers.
 
 ## Qué falta (no asumir que existe)

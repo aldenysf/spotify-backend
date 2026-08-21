@@ -175,4 +175,82 @@
 		</plugins>
 	</build>
 
+	<profiles>
+		<profile>
+			<!--
+				Perfil opcional para performance testing (Día 4 del plan SDET).
+				No se activa por defecto: `./mvnw -B verify sonar:sonar` (el pipeline
+				normal de CI) no lo toca. Se activa a mano con `./mvnw -Pperf verify`.
+				Levanta la app real (spring-boot:start) con el profile Spring "perf"
+				activo, que reemplaza SpotifyService por PerfStubSpotifyService (datos
+				fijos, sin red), corre el plan de JMeter contra ella, y la apaga.
+			-->
+			<id>perf</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.springframework.boot</groupId>
+						<artifactId>spring-boot-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>perf-app-start</id>
+								<phase>pre-integration-test</phase>
+								<goals>
+									<goal>start</goal>
+								</goals>
+								<configuration>
+									<arguments>
+										<argument>--spring.profiles.active=perf</argument>
+										<argument>--server.port=8089</argument>
+										<argument>--spotify.client-secret=perf-dummy-secret</argument>
+										<argument>--spotify.current-refresh-token=perf-dummy-refresh-token</argument>
+									</arguments>
+								</configuration>
+							</execution>
+							<execution>
+								<id>perf-app-stop</id>
+								<phase>post-integration-test</phase>
+								<goals>
+									<goal>stop</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+					<plugin>
+						<groupId>com.lazerycode.jmeter</groupId>
+						<artifactId>jmeter-maven-plugin</artifactId>
+						<version>3.8.0</version>
+						<executions>
+							<execution>
+								<id>configuration</id>
+								<phase>pre-integration-test</phase>
+								<goals>
+									<goal>configure</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>jmeter-tests</id>
+								<phase>integration-test</phase>
+								<goals>
+									<goal>jmeter</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>jmeter-check-results</id>
+								<phase>integration-test</phase>
+								<goals>
+									<goal>results</goal>
+								</goals>
+							</execution>
+						</executions>
+						<configuration>
+							<testResultsTimestamp>false</testResultsTimestamp>
+							<generateReports>true</generateReports>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+
 </project>

@@ -84,6 +84,14 @@ http://127.0.0.1:8080/playlist
 ./mvnw test
 ```
 
+## Performance testing (JMeter)
+
+```bash
+./mvnw -Pperf clean verify
+```
+
+Corre un load test (50 usuarios, 500 requests) contra `/playlistdata` con un stub de `SpotifyService` (sin depender de la API real de Spotify). No hace falta tener JMeter instalado — el plugin lo descarga vía Maven. Reporte HTML en `target/jmeter/reports/playlistdata-load-test/index.html`. Usa siempre `clean`, el reporte no se sobreescribe entre corridas.
+
 ## Limitaciones conocidas
 
 - No hay endpoints de escritura (agregar/quitar canciones, reordenar, etc.), solo lectura.
