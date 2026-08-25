@@ -44,8 +44,11 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
   `./mvnw test`. Cero tests vacíos/muertos (se eliminó
   `SpotifyAuthControllerTest.java` y `PlaywrightTestCase.java`, que no tenían
   ningún `@Test` real).
-- CI: `.github/workflows/ci.yml` corre `./mvnw -B verify sonar:sonar` en cada
-  push/PR a `main` (Día 1 + 2 + 3). *Branch protection no disponible en este
+- CI: `.github/workflows/ci.yml` es un caller que invoca el reusable workflow
+  `.github/workflows/quality-gate.yml` (`uses:` + `secrets: inherit`) en cada
+  push/PR a `main`. La lógica real (checkout, JDK, Playwright, `./mvnw -B verify sonar:sonar`,
+  artefacto de JaCoCo) vive en `quality-gate.yml`, parametrizado con un input
+  `java-version` (default `17`). *Branch protection no disponible en este
   repo (plan Free de GitHub) — el CI es informativo, no bloquea merges
   todavía.*
 - Cobertura: JaCoCo mide y bloquea el build si la cobertura de línea del
@@ -109,6 +112,9 @@ Solo lectura — no hay endpoints de escritura (agregar/reordenar canciones).
 - **Día 4 (JMeter)**: completo — ver sección "Performance testing".
 - **Día 5 (Playwright E2E)**: completo, con el scope realista que ya
   documentaba `AGENTS.md` (Swagger UI, no el login OAuth interactivo).
+- **Día 6 (workflow reutilizable)**: completo — `ci.yml` ahora solo llama a
+  `quality-gate.yml` vía `workflow_call`. `performance.yml` queda aparte a
+  propósito (job distinto, sin Sonar ni gate de cobertura como condición).
 - Bug real encontrado y arreglado en el Día 5: `springdoc-openapi` filtra
   silenciosamente los métodos de clases `@Controller` sin `@ResponseBody` —
   `/v3/api-docs` devolvía `paths: {}` aunque los endpoints funcionaran bien
@@ -167,3 +173,10 @@ Spotify y las cookies de sesión están atados a ese host exacto).
   `/swagger-ui/index.html` y valida que liste `/playlistdata`. `ci.yml` suma
   un step para instalar los browsers de Playwright antes de los tests.
   Cobertura: 60.7% de líneas. Branch: `day5-playwright-e2e`.
+- **Día 6**: extraído `.github/workflows/quality-gate.yml` como **reusable
+  workflow** (`on: workflow_call`, input `java-version` default `17`) con
+  toda la lógica que antes vivía inline en `ci.yml` (checkout, JDK, install
+  de Playwright, `verify sonar:sonar`, subir artefacto de JaCoCo). `ci.yml`
+  quedó reducido a un solo job: `uses: ./.github/workflows/quality-gate.yml`
+  + `secrets: inherit`. `performance.yml` no consume el reusable workflow a
+  propósito (job y objetivo distintos). Branch: `day6-reusable-workflow`.

@@ -51,9 +51,11 @@ Siempre usar `./mvnw`, no asumir que `mvn` global está instalado.
 
 ## CI
 
-`.github/workflows/ci.yml` corre `./mvnw -B verify sonar:sonar` en cada push/PR a `main` (desde `day1-ci-pipeline`/`day2-quality-gates`, ver `context.md` → Historial de avance). No proponer crear un pipeline desde cero — ya existe; si se necesita algo nuevo, extender ese archivo. Incluye gate de cobertura (JaCoCo, mínimo 30% de línea) y análisis estático (SonarCloud, repo público, org `aldenysf`, project key `aldenysf_spotify-backend`, token en el secret `SONAR_TOKEN`). Branch protection no está disponible en este repo (plan Free de GitHub), así que el CI es informativo por ahora, no bloquea merges.
+`.github/workflows/ci.yml` es solo un caller: en cada push/PR a `main` invoca el **reusable workflow** `.github/workflows/quality-gate.yml` (`uses: ./.github/workflows/quality-gate.yml` + `secrets: inherit`). La lógica real (checkout, JDK, Playwright, `./mvnw -B verify sonar:sonar`, subir el reporte de JaCoCo) vive en `quality-gate.yml`, no en `ci.yml`. **Si hay que agregar o cambiar un step del pipeline principal, tocar `quality-gate.yml`, no `ci.yml`.** `ci.yml` solo debería cambiar si se agrega otro trigger o se llama a otro workflow reutilizable. `quality-gate.yml` acepta un input `java-version` (default `'17'`) — por eso es genuinamente reutilizable, no solo un archivo movido de lugar.
 
-`.github/workflows/performance.yml` corre el load test de JMeter, pero solo manual (`workflow_dispatch`) — no en cada push, para no ralentizar el pipeline normal. Ver sección "Performance testing" abajo.
+Incluye gate de cobertura (JaCoCo, mínimo 30% de línea) y análisis estático (SonarCloud, repo público, org `aldenysf`, project key `aldenysf_spotify-backend`, token en el secret `SONAR_TOKEN`). Branch protection no está disponible en este repo (plan Free de GitHub), así que el CI es informativo por ahora, no bloquea merges.
+
+`.github/workflows/performance.yml` corre el load test de JMeter, pero solo manual (`workflow_dispatch`) — no en cada push, para no ralentizar el pipeline normal, y **no** llama a `quality-gate.yml` (es un job distinto: profile `perf`, sin Sonar, sin gate de cobertura como condición de éxito). Ver sección "Performance testing" abajo.
 
 ## Performance testing
 

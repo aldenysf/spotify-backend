@@ -1,0 +1,37 @@
+name: Quality Gate
+
+on:
+  workflow_call:
+    inputs:
+      java-version:
+        description: "JDK version to build and test with"
+        type: string
+        default: '17'
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Set up JDK ${{ inputs.java-version }}
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ inputs.java-version }}
+          cache: maven
+      - name: Install Playwright browsers
+        run: ./mvnw -B exec:java -D exec.mainClass=com.microsoft.playwright.CLI -D exec.args="install --with-deps chromium" -D exec.classpathScope=test
+      - name: Build, test, enforce coverage gate, and run SonarCloud analysis
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        run: ./mvnw -B verify sonar:sonar
+      - name: Upload JaCoCo coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-report
+          path: target/site/jacoco
+          retention-days: 14
