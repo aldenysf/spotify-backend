@@ -180,3 +180,13 @@ Spotify y las cookies de sesión están atados a ese host exacto).
   quedó reducido a un solo job: `uses: ./.github/workflows/quality-gate.yml`
   + `secrets: inherit`. `performance.yml` no consume el reusable workflow a
   propósito (job y objetivo distintos). Branch: `day6-reusable-workflow`.
+- **Día 7 (consolidación)**: plan de código cerrado (Días 1-6 completos, 7
+  PRs mergeados). Métricas finales reales: 23 tests automatizados (0
+  fallos), 60.7% de cobertura de línea (gate en 30%), 16/16 corridas de CI en
+  verde, Quality Gate de SonarCloud en verde (0 issues nuevos), JMeter
+  500/500 requests exitosos (0% error rate, ~50.8 req/s, 2ms de latencia
+  promedio), 1 workflow reutilizable, 1 bug real de producción encontrado y
+  arreglado (`PlaylistController` no aparecía en Swagger por faltarle
+  `@RestController`). Lo que queda de este día es trabajo fuera del repo:
+  actualizar el CV maestro con estas métricas y repasar el syllabus de ISTQB
+  Foundation Level.
